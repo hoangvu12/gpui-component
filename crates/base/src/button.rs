@@ -313,7 +313,7 @@ mod tests {
             }
         });
         cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         (cx, button_clicks, parent_clicks, keyboard_events)
     }
@@ -335,7 +335,7 @@ mod tests {
         button_clicks.set(0);
         cx.update(|window, cx| {
             assert!(window.focused(cx).is_some());
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
 
         for key in ["enter", "space"] {
@@ -476,7 +476,7 @@ mod tests {
         let result = captured.clone();
         let (_, cx) = cx.add_window_view(move |_, _| A11yProbe { captured });
         cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         let (enabled, disabled) = result.lock().unwrap().take().unwrap();
         assert_eq!(enabled.role(), Role::Button);

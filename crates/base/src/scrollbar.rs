@@ -1419,7 +1419,7 @@ mod tests {
             let handle = handle.clone();
             move |_, _| ScrollbarHarness { handle, axis }
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         (cx, handle)
     }
 

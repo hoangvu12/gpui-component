@@ -3095,7 +3095,7 @@ mod tests {
     use crate::theme::Theme;
     use gpui::{TestAppContext, VisualTestContext};
 
-    use crate::input::{EditorMode, InputMode, TextareaMode};
+    use crate::input::{EditorMode, EditorState, InputMode, TextareaMode};
 
     struct TestRoot<M: InputModeKind>(Entity<InputBaseState<M>>);
 
@@ -3177,6 +3177,95 @@ mod tests {
                 f(crate::input::InputState::new(window, cx))
             })
         }
+    }
+
+    struct CometEditorRoot(Entity<EditorState>);
+
+    impl Render for CometEditorRoot {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(crate::input::Editor::new(&self.0))
+        }
+    }
+
+    struct CometEditorFixture {
+        input: Entity<EditorState>,
+        window_handle: gpui::WindowHandle<CometEditorRoot>,
+    }
+
+    impl CometEditorFixture {
+        fn open(cx: &mut TestAppContext) -> Self {
+            let mut input = None;
+            let window = cx.update(|cx| {
+                cx.open_window(Default::default(), |window, cx| {
+                    cx.set_global(Theme::default());
+                    super::super::init(cx);
+
+                    let editor = cx.new(|cx| crate::input::EditorState::new(window, cx));
+                    input = Some(editor.clone());
+                    cx.new(|_| CometEditorRoot(editor))
+                })
+                .unwrap()
+            });
+
+            Self {
+                input: input.unwrap(),
+                window_handle: window,
+            }
+        }
+    }
+
+    #[gpui::test]
+    fn comet_gpui_compat_editor_fixture(cx: &mut TestAppContext) {
+        let fixture = CometEditorFixture::open(cx);
+        let mut cx = VisualTestContext::from_window(fixture.window_handle.into(), cx);
+        let input = fixture.input;
+        let typed = format!(
+            "ASCII 世界 🦀\n{}",
+            (2..=40)
+                .map(|line| format!("line {line}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+
+        // Exercise the same replacement path used by typed input, including
+        // UTF-8 text and a multi-line buffer.
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.replace_text_in_range(None, &typed, window, cx);
+                assert_eq!(state.value(), typed);
+                assert_eq!(state.cursor(), typed.len());
+
+                state.set_selected_range(6..12, cx);
+                assert_eq!(state.selected_value(), "世界");
+                assert_eq!(state.selected_range(), 6..12);
+
+                state.unselect(window, cx);
+                let end = state.cursor();
+                state.left(&MoveLeft, window, cx);
+                assert!(state.cursor() < end);
+                state.right(&MoveRight, window, cx);
+                assert_eq!(state.cursor(), end);
+
+                state.undo(&Undo, window, cx);
+                assert_eq!(state.value(), "");
+                state.redo(&Redo, window, cx);
+                assert_eq!(state.value(), typed);
+            });
+        });
+
+        // The root above renders the public Editor component. Draw again after
+        // editing, then verify that the state can accept and apply scrolling.
+        cx.update(|window, cx| window.draw(cx).clear());
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.set_scroll_offset(point(px(0.), px(-24.)), cx);
+            });
+            window.draw(cx).clear();
+        });
+        input.read_with(&mut cx, |state, _| {
+            assert!(state.visible_row_range().is_some());
+            assert!(state.scroll_offset().y < px(0.));
+        });
     }
 
     #[gpui::test]
