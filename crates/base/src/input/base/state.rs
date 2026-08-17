@@ -1784,11 +1784,16 @@ impl<M: InputModeKind> InputBaseState<M> {
         cx: &mut Context<Self>,
     ) {
         let mut offset = offset.unwrap_or(self.scroll_handle.offset());
+        let cursor_width = self
+            .last_layout
+            .as_ref()
+            .map(|layout| layout.cursor_size.width)
+            .unwrap_or(CURSOR_WIDTH);
         // In addition to left alignment, a cursor position will be reserved on the right side
         let safe_x_offset = if self.text_align == TextAlign::Left {
             px(0.)
         } else {
-            -CURSOR_WIDTH
+            -cursor_width
         };
 
         let safe_y_range =
@@ -1838,7 +1843,7 @@ impl<M: InputModeKind> InputBaseState<M> {
         let safety_margin = match last_layout.text_align {
             TextAlign::Left => RIGHT_MARGIN,
             TextAlign::Right => px(0.),
-            TextAlign::Center => CURSOR_WIDTH,
+            TextAlign::Center => last_layout.cursor_size.width,
         };
         if let Some(line) = last_layout
             .lines
@@ -3177,6 +3182,53 @@ mod tests {
                 f(crate::input::InputState::new(window, cx))
             })
         }
+    }
+
+    fn assert_caret_is_visible_and_in_bounds<M: InputModeKind>(
+        input_view: InputView<M>,
+        cx: &mut TestAppContext,
+        text_align: Option<TextAlign>,
+    ) {
+        let input = input_view.input;
+        let mut cx = VisualTestContext::from_window(input_view.window_handle.into(), cx);
+
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.set_value("fractional caret geometry", window, cx);
+                if let Some(text_align) = text_align {
+                    state.set_text_align(text_align, cx);
+                }
+            });
+            window.draw(cx).clear();
+        });
+        cx.update(|window, cx| window.draw(cx).clear());
+
+        input.read_with(&mut cx, |state, _| {
+            let (caret, _) = state
+                .cursor_layout()
+                .expect("caret should be laid out after drawing");
+            let input_bounds = state.input_bounds();
+
+            assert!(caret.size.width > px(0.));
+            assert!(caret.size.height > px(0.));
+            assert!(caret.left() < input_bounds.right());
+            assert!(caret.right() <= input_bounds.right());
+        });
+    }
+
+    #[gpui::test]
+    fn caret_remains_visible_in_input_textarea_and_code_editor(cx: &mut TestAppContext) {
+        assert_caret_is_visible_and_in_bounds(
+            InputView::build(cx, |state| state),
+            cx,
+            Some(TextAlign::Right),
+        );
+        assert_caret_is_visible_and_in_bounds(
+            InputView::build_textarea(cx, |state| state),
+            cx,
+            None,
+        );
+        assert_caret_is_visible_and_in_bounds(InputView::<EditorMode>::new(cx), cx, None);
     }
 
     struct CometEditorRoot(Entity<EditorState>);

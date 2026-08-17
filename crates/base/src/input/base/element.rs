@@ -17,7 +17,11 @@ use std::{ops::Range, rc::Rc};
 
 use crate::{
     Scrollbar,
-    input::{RopeExt as _, blink_cursor::CURSOR_WIDTH, display_map::LineLayout},
+    input::{
+        RopeExt as _,
+        blink_cursor::{clamp_cursor_x_to_right_edge, cursor_size},
+        display_map::LineLayout,
+    },
 };
 
 use super::{
@@ -456,6 +460,8 @@ impl<M: InputModeKind> TextElement<M> {
         let visible_range = &last_layout.visible_range;
         let lines = &last_layout.lines;
         let line_number_width = last_layout.line_number_width;
+        let cursor_size = last_layout.cursor_size;
+        let cursor_width = cursor_size.width;
 
         let mut selected_range = state.selected_range;
 
@@ -518,7 +524,7 @@ impl<M: InputModeKind> TextElement<M> {
                 let safety_margin = match last_layout.text_align {
                     TextAlign::Left => RIGHT_MARGIN,
                     TextAlign::Right => px(0.),
-                    TextAlign::Center => CURSOR_WIDTH,
+                    TextAlign::Center => cursor_width,
                 };
 
                 scroll_offset.x = if scroll_offset.x + cursor_pos.x
@@ -576,7 +582,7 @@ impl<M: InputModeKind> TextElement<M> {
             }
 
             // cursor bounds
-            let cursor_height = 0.85 * line_height;
+            let cursor_height = cursor_size.height;
 
             // Match the caret to the deferred scroll target (applied below) that
             // the text paints at; otherwise the caret follows the cursor-scroll
@@ -590,7 +596,7 @@ impl<M: InputModeKind> TextElement<M> {
             // stays visible without having to shift the text via scroll_offset.
             let cursor_x = bounds.left() + cursor_pos.x + line_number_width + cursor_scroll_x;
             let cursor_x = if last_layout.text_align == TextAlign::Right {
-                cursor_x.min(bounds.right() - CURSOR_WIDTH)
+                clamp_cursor_x_to_right_edge(cursor_x, bounds.right(), cursor_width)
             } else {
                 cursor_x
             };
@@ -599,7 +605,7 @@ impl<M: InputModeKind> TextElement<M> {
                     cursor_x,
                     bounds.top() + cursor_pos.y + ((line_height - cursor_height) / 2.),
                 ),
-                size(CURSOR_WIDTH, cursor_height),
+                cursor_size,
             ))
         };
 
@@ -1783,6 +1789,7 @@ impl<M: InputModeKind> Element for TextElement<M> {
             wrap_width,
             wrapping_indent,
             line_number_width,
+            cursor_size: cursor_size(window, line_height),
             lines: Rc::new(vec![]),
             cursor_bounds: None,
             text_align: state.text_align,
