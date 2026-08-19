@@ -884,7 +884,7 @@ mod tests {
                 cx,
             );
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
 
         let anchors =
             |list: &NotificationList| list.stacks.iter().map(|(a, _)| *a).collect::<Vec<_>>();
@@ -898,7 +898,7 @@ mod tests {
             list.close(TypeId::of::<BarKind>(), window, cx);
         });
         flush_dismiss(cx);
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         assert_eq!(
             list.read_with(cx, |list, _| anchors(list)),
             [Anchor::TopRight]
@@ -976,7 +976,7 @@ mod tests {
         cx.update(|window, cx| {
             window.activate_window();
             list_focus.focus(window, cx);
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         cx.background_executor.advance_clock(Duration::from_secs(5));
         cx.run_until_parked();
@@ -988,7 +988,7 @@ mod tests {
         let other_focus = root.read_with(cx, |root, _| root.other_focus.clone());
         cx.update(|window, cx| {
             other_focus.focus(window, cx);
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         assert!(!list.read_with(cx, |list, _| list.is_expanded()));
         cx.background_executor

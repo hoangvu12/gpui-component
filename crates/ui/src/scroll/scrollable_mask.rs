@@ -1,17 +1,95 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+#[cfg(not(target_family = "wasm"))]
+use std::time::{Duration, Instant};
 
 use gpui::{
     App, Axis, BorderStyle, Bounds, ContentMask, Edges, Element, ElementId, GlobalElementId,
-    Hitbox, Hsla, InteractiveElement as _, IntoElement, IsZero as _, LayoutId, OngoingScroll,
-    PaintQuad, ParentElement as _, Point, Position, ScrollHandle, ScrollWheelEvent,
+    Hitbox, Hsla, InteractiveElement as _, IntoElement, IsZero as _, LayoutId, PaintQuad,
+    ParentElement as _, Point, Position, ScrollHandle, ScrollWheelEvent,
     StatefulInteractiveElement as _, Style, StyleRefinement, Styled as _, Window, div, px,
     relative,
 };
 use gpui::{Corners, Pixels};
 
 use super::scrollable::caller_id;
-use crate::{AxisExt, OngoingScrollExt as _, StyledExt as _};
+use crate::{AxisExt, StyledExt as _};
+
+#[derive(Clone, Copy, Debug, Default)]
+struct OngoingScroll {
+    #[cfg(not(target_family = "wasm"))]
+    last_event: Option<Instant>,
+    #[cfg(not(target_family = "wasm"))]
+    axis: Option<Axis>,
+}
+
+impl OngoingScroll {
+    fn lock_axis(&mut self, delta: &mut Point<Pixels>, touch_phase: gpui::TouchPhase) {
+        #[cfg(target_family = "wasm")]
+        let _ = (delta, touch_phase);
+
+        #[cfg(not(target_family = "wasm"))]
+        self.filter_at(delta, touch_phase, Instant::now());
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    fn filter_at(
+        &mut self,
+        delta: &mut Point<Pixels>,
+        touch_phase: gpui::TouchPhase,
+        now: Instant,
+    ) {
+        const SCROLL_EVENT_SEPARATION: Duration = Duration::from_millis(28);
+        const UNLOCK_PERCENT: f32 = 1.9;
+        const UNLOCK_LOWER_BOUND: Pixels = px(6.);
+
+        if matches!(
+            touch_phase,
+            gpui::TouchPhase::Ended | gpui::TouchPhase::Cancelled
+        ) {
+            self.last_event = None;
+            self.axis = None;
+            return;
+        }
+
+        let x = delta.x.abs();
+        let y = delta.y.abs();
+        if x.is_zero() && y.is_zero() {
+            if touch_phase == gpui::TouchPhase::Started {
+                self.last_event = None;
+                self.axis = None;
+            }
+            return;
+        }
+
+        let starts_new_gesture = touch_phase == gpui::TouchPhase::Started
+            || self
+                .last_event
+                .is_none_or(|last_event| now.duration_since(last_event) >= SCROLL_EVENT_SEPARATION);
+        let mut axis = self.axis;
+        if starts_new_gesture {
+            axis = if x <= y {
+                Some(Axis::Vertical)
+            } else {
+                Some(Axis::Horizontal)
+            };
+        } else if x.max(y) >= UNLOCK_LOWER_BOUND {
+            match axis {
+                Some(Axis::Vertical) if x > y && x >= y * UNLOCK_PERCENT => axis = None,
+                Some(Axis::Horizontal) if y > x && y >= x * UNLOCK_PERCENT => axis = None,
+                _ => {}
+            }
+        }
+
+        self.last_event = Some(now);
+        self.axis = axis;
+        match axis {
+            Some(Axis::Vertical) => delta.x = Pixels::ZERO,
+            Some(Axis::Horizontal) => delta.y = Pixels::ZERO,
+            None => {}
+        }
+    }
+}
 
 /// A horizontal scroll viewport that only consumes horizontal wheel deltas.
 ///

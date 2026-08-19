@@ -1247,7 +1247,7 @@ mod tests {
             let parent_clicks = parent_clicks.clone();
             move |_, _| Harness(button_clicks, parent_clicks)
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         cx.simulate_click(point(px(10.), px(10.)), Modifiers::default());
         cx.update(|window, cx| window.focus_next(cx));
         cx.simulate_keystrokes("enter space");
@@ -1292,12 +1292,12 @@ mod tests {
             let keyboard_clicks = keyboard_clicks.clone();
             move |_, _| Harness(clicks, keyboard_clicks)
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         cx.simulate_click(point(px(10.), px(10.)), Modifiers::default());
         cx.update(|window, cx| window.focus_next(cx));
         cx.update(|window, cx| {
             assert!(window.focused(cx).is_some());
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         for key in ["enter", "space"] {
             let keystroke = Keystroke::parse(key).unwrap();
@@ -1347,7 +1347,7 @@ mod tests {
             let parent_clicks = parent_clicks.clone();
             move |_, _| Harness(button_clicks, parent_clicks)
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         cx.simulate_click(point(px(10.), px(10.)), Modifiers::default());
         cx.update(|window, cx| window.focus_next(cx));
         cx.simulate_keystrokes("enter space");
@@ -1389,7 +1389,7 @@ mod tests {
             let parent_clicks = parent_clicks.clone();
             move |_, _| Harness(parent_clicks)
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         cx.simulate_click(point(px(10.), px(10.)), Modifiers::default());
         cx.update(|window, cx| window.focus_next(cx));
         cx.simulate_keystrokes("enter space");
@@ -1496,7 +1496,7 @@ mod tests {
 
         cx.update(crate::init);
         let (_, cx) = cx.add_window_view(|_, _| LinkButtonHarness);
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
 
         let bounds = cx
             .debug_bounds("link-button-child")
@@ -1538,7 +1538,7 @@ mod tests {
 
         cx.update(crate::init);
         let (_, cx) = cx.add_window_view(|_, _| CompleteButtonHarness);
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
 
         let bounds = cx
             .debug_bounds("button-custom-content")

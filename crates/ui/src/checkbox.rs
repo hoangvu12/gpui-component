@@ -403,7 +403,7 @@ mod tests {
                 parent_clicks,
             }
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         (cx, clicks, parent_clicks)
     }
 
@@ -466,7 +466,7 @@ mod tests {
 
         cx.update(crate::init);
         let (_, cx) = cx.add_window_view(|_, _| ContentHarness);
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
 
         let bounds = cx
             .debug_bounds("checkbox-custom-content")
