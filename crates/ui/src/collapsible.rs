@@ -81,13 +81,13 @@ mod tests {
     #[gpui::test]
     fn facade_preserves_vertical_layout_and_visibility(cx: &mut TestAppContext) {
         let (_, cx) = cx.add_window_view(|_, _| Harness(true));
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         let trigger = cx.debug_bounds("collapsible-trigger").unwrap();
         let content = cx.debug_bounds("collapsible-content").unwrap();
         assert!(trigger.origin.y < content.origin.y);
 
         let (_, cx) = cx.add_window_view(|_, _| Harness(false));
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("collapsible-trigger").is_some());
         assert!(cx.debug_bounds("collapsible-content").is_none());
     }

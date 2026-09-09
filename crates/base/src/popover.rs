@@ -358,14 +358,14 @@ mod tests {
                 default_open: false,
             }
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
 
         cx.simulate_click(point(px(20.), px(10.)), Default::default());
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("base-popover-content").is_some());
 
         cx.simulate_click(point(px(300.), px(300.)), Default::default());
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("base-popover-content").is_none());
         assert_eq!(&*changes.borrow(), &[true, false, false]);
     }
@@ -377,8 +377,8 @@ mod tests {
             changes: Rc::new(RefCell::new(Vec::new())),
             default_open: true,
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("base-popover-content").is_some());
     }
 }

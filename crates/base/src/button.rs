@@ -26,6 +26,7 @@ pub struct Button {
     disabled: bool,
     children: SmallVec<[AnyElement; 2]>,
     on_click: Option<ClickHandler>,
+    accessibility_id: Option<SharedString>,
     accessibility_label: Option<SharedString>,
     role: RoleOverride,
     provided_focus_handle: Option<FocusHandle>,
@@ -46,6 +47,7 @@ impl Button {
             disabled: false,
             children: SmallVec::new(),
             on_click: None,
+            accessibility_id: None,
             accessibility_label: None,
             role: RoleOverride::Implicit,
             provided_focus_handle: None,
@@ -81,6 +83,12 @@ impl Button {
     /// Sets the label exposed to accessibility clients.
     pub fn accessibility_label(mut self, label: impl Into<SharedString>) -> Self {
         self.accessibility_label = Some(label.into());
+        self
+    }
+
+    /// Sets the developer-assigned identifier exposed to accessibility clients.
+    pub fn accessibility_id(mut self, id: impl Into<SharedString>) -> Self {
+        self.accessibility_id = Some(id.into());
         self
     }
 
@@ -210,8 +218,10 @@ impl RenderOnce for Button {
         let disabled = self.disabled;
         let style = self.resolved_style();
         let on_click = self.on_click;
+        let accessibility_id = self.accessibility_id;
 
-        self.base
+        let element = self
+            .base
             .when_some(self.role.resolve(|| Role::Button), |this, role| {
                 this.role(role)
             })
@@ -239,7 +249,9 @@ impl RenderOnce for Button {
                 },
             )
             .children(self.children)
-            .refine_style(&style)
+            .refine_style(&style);
+
+        crate::accessibility::AccessibilityId::new(element, accessibility_id)
     }
 }
 
@@ -313,7 +325,7 @@ mod tests {
             }
         });
         cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         (cx, button_clicks, parent_clicks, keyboard_events)
     }
@@ -335,7 +347,7 @@ mod tests {
         button_clicks.set(0);
         cx.update(|window, cx| {
             assert!(window.focused(cx).is_some());
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
 
         for key in ["enter", "space"] {
@@ -476,7 +488,7 @@ mod tests {
         let result = captured.clone();
         let (_, cx) = cx.add_window_view(move |_, _| A11yProbe { captured });
         cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
         let (enabled, disabled) = result.lock().unwrap().take().unwrap();
         assert_eq!(enabled.role(), Role::Button);

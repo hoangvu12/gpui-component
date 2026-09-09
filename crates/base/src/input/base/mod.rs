@@ -113,6 +113,7 @@ pub struct InputBase {
     focused: bool,
     disabled: bool,
     role: crate::RoleOverride,
+    accessibility_id: Option<SharedString>,
 }
 
 impl InputBase {
@@ -125,6 +126,7 @@ impl InputBase {
             focused: false,
             disabled: false,
             role: crate::RoleOverride::Implicit,
+            accessibility_id: None,
         }
     }
     pub fn role(mut self, role: impl Into<crate::RoleOverride>) -> Self {
@@ -149,6 +151,11 @@ impl InputBase {
 
     pub fn accessibility_label(mut self, label: impl Into<SharedString>) -> Self {
         self.base = self.base.aria_label(label.into());
+        self
+    }
+
+    pub fn accessibility_id(mut self, id: impl Into<SharedString>) -> Self {
+        self.accessibility_id = Some(id.into());
         self
     }
 
@@ -208,12 +215,16 @@ impl StatefulInteractiveElement for InputBase {}
 impl RenderOnce for InputBase {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let style = self.resolved_style();
-        self.base
+        let accessibility_id = self.accessibility_id;
+        let element = self
+            .base
             .when_some(self.role.resolve(|| Role::TextInput), |this, role| {
                 this.role(role)
             })
             .children(self.children)
-            .refine_style(&style)
+            .refine_style(&style);
+
+        crate::accessibility::AccessibilityId::new(element, accessibility_id)
     }
 }
 

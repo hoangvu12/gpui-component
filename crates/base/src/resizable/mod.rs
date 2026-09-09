@@ -396,8 +396,8 @@ mod tests {
             let resizes = resizes.clone();
             move |_, _| ResizableHarness { state, resizes }
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
+        cx.update(|window, cx| window.draw(cx).clear());
         (cx, state, resizes)
     }
 
@@ -436,7 +436,7 @@ mod tests {
             state.update(cx, |state, cx| {
                 state.resize_panel(0, px(220.), window, cx);
             });
-            window.draw(cx).clear(cx);
+            window.draw(cx).clear();
         });
 
         state.read_with(cx, |state, _| {

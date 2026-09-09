@@ -329,14 +329,14 @@ mod tests {
             let changes = changes.clone();
             move |_, _| PopoverHarness { changes }
         });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
 
         cx.simulate_click(point(px(20.), px(20.)), Default::default());
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("runtime-popover-content").is_some());
 
         cx.simulate_click(point(px(300.), px(300.)), Default::default());
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("runtime-popover-content").is_none());
         // Preserve the existing event ordering: the trigger wrapper and the
         // popup's mouse-down-out path can both close the uncontrolled popover.
@@ -366,8 +366,8 @@ mod tests {
             init(cx);
         });
         let (_, cx) = cx.add_window_view(|_, _| DefaultOpenHarness);
-        cx.update(|window, cx| window.draw(cx).clear(cx));
-        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, cx| window.draw(cx).clear());
+        cx.update(|window, cx| window.draw(cx).clear());
         assert!(cx.debug_bounds("default-open-content").is_some());
     }
 }

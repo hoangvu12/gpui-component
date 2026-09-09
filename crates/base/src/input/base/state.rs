@@ -1784,11 +1784,16 @@ impl<M: InputModeKind> InputBaseState<M> {
         cx: &mut Context<Self>,
     ) {
         let mut offset = offset.unwrap_or(self.scroll_handle.offset());
+        let cursor_width = self
+            .last_layout
+            .as_ref()
+            .map(|layout| layout.cursor_size.width)
+            .unwrap_or(CURSOR_WIDTH);
         // In addition to left alignment, a cursor position will be reserved on the right side
         let safe_x_offset = if self.text_align == TextAlign::Left {
             px(0.)
         } else {
-            -CURSOR_WIDTH
+            -cursor_width
         };
 
         let safe_y_range =
@@ -1838,7 +1843,7 @@ impl<M: InputModeKind> InputBaseState<M> {
         let safety_margin = match last_layout.text_align {
             TextAlign::Left => RIGHT_MARGIN,
             TextAlign::Right => px(0.),
-            TextAlign::Center => CURSOR_WIDTH,
+            TextAlign::Center => last_layout.cursor_size.width,
         };
         if let Some(line) = last_layout
             .lines
@@ -3095,7 +3100,7 @@ mod tests {
     use crate::theme::Theme;
     use gpui::{TestAppContext, VisualTestContext};
 
-    use crate::input::{EditorMode, InputMode, TextareaMode};
+    use crate::input::{EditorMode, EditorState, InputMode, TextareaMode};
 
     struct TestRoot<M: InputModeKind>(Entity<InputBaseState<M>>);
 
@@ -3177,6 +3182,142 @@ mod tests {
                 f(crate::input::InputState::new(window, cx))
             })
         }
+    }
+
+    fn assert_caret_is_visible_and_in_bounds<M: InputModeKind>(
+        input_view: InputView<M>,
+        cx: &mut TestAppContext,
+        text_align: Option<TextAlign>,
+    ) {
+        let input = input_view.input;
+        let mut cx = VisualTestContext::from_window(input_view.window_handle.into(), cx);
+
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.set_value("fractional caret geometry", window, cx);
+                if let Some(text_align) = text_align {
+                    state.set_text_align(text_align, cx);
+                }
+            });
+            window.draw(cx).clear();
+        });
+        cx.update(|window, cx| window.draw(cx).clear());
+
+        input.read_with(&mut cx, |state, _| {
+            let (caret, _) = state
+                .cursor_layout()
+                .expect("caret should be laid out after drawing");
+            let input_bounds = state.input_bounds();
+
+            assert!(caret.size.width > px(0.));
+            assert!(caret.size.height > px(0.));
+            assert!(caret.left() < input_bounds.right());
+            assert!(caret.right() <= input_bounds.right());
+        });
+    }
+
+    #[gpui::test]
+    fn caret_remains_visible_in_input_textarea_and_code_editor(cx: &mut TestAppContext) {
+        assert_caret_is_visible_and_in_bounds(
+            InputView::build(cx, |state| state),
+            cx,
+            Some(TextAlign::Right),
+        );
+        assert_caret_is_visible_and_in_bounds(
+            InputView::build_textarea(cx, |state| state),
+            cx,
+            None,
+        );
+        assert_caret_is_visible_and_in_bounds(InputView::<EditorMode>::new(cx), cx, None);
+    }
+
+    struct CometEditorRoot(Entity<EditorState>);
+
+    impl Render for CometEditorRoot {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(crate::input::Editor::new(&self.0))
+        }
+    }
+
+    struct CometEditorFixture {
+        input: Entity<EditorState>,
+        window_handle: gpui::WindowHandle<CometEditorRoot>,
+    }
+
+    impl CometEditorFixture {
+        fn open(cx: &mut TestAppContext) -> Self {
+            let mut input = None;
+            let window = cx.update(|cx| {
+                cx.open_window(Default::default(), |window, cx| {
+                    cx.set_global(Theme::default());
+                    super::super::init(cx);
+
+                    let editor = cx.new(|cx| crate::input::EditorState::new(window, cx));
+                    input = Some(editor.clone());
+                    cx.new(|_| CometEditorRoot(editor))
+                })
+                .unwrap()
+            });
+
+            Self {
+                input: input.unwrap(),
+                window_handle: window,
+            }
+        }
+    }
+
+    #[gpui::test]
+    fn comet_gpui_compat_editor_fixture(cx: &mut TestAppContext) {
+        let fixture = CometEditorFixture::open(cx);
+        let mut cx = VisualTestContext::from_window(fixture.window_handle.into(), cx);
+        let input = fixture.input;
+        let typed = format!(
+            "ASCII 世界 🦀\n{}",
+            (2..=40)
+                .map(|line| format!("line {line}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+
+        // Exercise the same replacement path used by typed input, including
+        // UTF-8 text and a multi-line buffer.
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.replace_text_in_range(None, &typed, window, cx);
+                assert_eq!(state.value(), typed);
+                assert_eq!(state.cursor(), typed.len());
+
+                state.set_selected_range(6..12, cx);
+                assert_eq!(state.selected_value(), "世界");
+                assert_eq!(state.selected_range(), 6..12);
+
+                state.unselect(window, cx);
+                let end = state.cursor();
+                state.left(&MoveLeft, window, cx);
+                assert!(state.cursor() < end);
+                state.right(&MoveRight, window, cx);
+                assert_eq!(state.cursor(), end);
+
+                state.undo(&Undo, window, cx);
+                assert_eq!(state.value(), "");
+                state.redo(&Redo, window, cx);
+                assert_eq!(state.value(), typed);
+            });
+        });
+
+        // The root above renders the public Editor component. Draw again after
+        // editing, then verify that the state can accept and apply scrolling.
+        cx.update(|window, cx| window.draw(cx).clear());
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.set_scroll_offset(point(px(0.), px(-24.)), cx);
+            });
+            window.draw(cx).clear();
+        });
+        input.read_with(&mut cx, |state, _| {
+            assert!(state.visible_row_range().is_some());
+            assert!(state.scroll_offset().y < px(0.));
+        });
     }
 
     #[gpui::test]

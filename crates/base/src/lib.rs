@@ -4,6 +4,7 @@
 //! colors, sizing, and motion belong to applications or the
 //! `gpui-component` façade.
 
+mod accessibility;
 mod accordion;
 pub mod actions;
 mod alert_dialog;
@@ -92,7 +93,7 @@ pub use dialog::{
     DialogPopup, DialogTitle, DialogTrigger,
 };
 pub use element_ext::ElementExt;
-pub use event::{InteractiveElementExt, OngoingScrollExt};
+pub use event::InteractiveElementExt;
 pub use focus_trap::FocusTrapElement;
 #[doc(hidden)]
 pub use focus_trap::active_focus_trap;
